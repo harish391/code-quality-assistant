@@ -45,7 +45,7 @@ async def analyze_code(request: CodeRequest):
         # Agent 1: Code Analyzer
         print("🔍 Starting CodeAnalyzer agent...")
         analyzer_response = client.chat.completions.create(
-            model="meta-llama/llama-3.1-8b-instruct:free",
+            model="meta-llama/llama-3.3-70b-instruct:free",  # ✅ UPDATED MODEL
             messages=[
                 {
                     "role": "system",
@@ -63,7 +63,7 @@ async def analyze_code(request: CodeRequest):
         # Agent 2: Test Generator
         print("🧪 Starting TestGenerator agent...")
         test_response = client.chat.completions.create(
-            model="meta-llama/llama-3.1-8b-instruct:free",
+            model="meta-llama/llama-3.3-70b-instruct:free",  # ✅ UPDATED MODEL
             messages=[
                 {
                     "role": "system",
@@ -81,7 +81,7 @@ async def analyze_code(request: CodeRequest):
         # Agent 3: Documentation Writer
         print("📝 Starting DocumentationWriter agent...")
         doc_response = client.chat.completions.create(
-            model="meta-llama/llama-3.1-8b-instruct:free",
+            model="meta-llama/llama-3.3-70b-instruct:free",  # ✅ UPDATED MODEL
             messages=[
                 {
                     "role": "system",
