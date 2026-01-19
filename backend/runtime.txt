@@ -1,0 +1,4 @@
+cd "C:\Users\HARISH I\Desktop\potpie\backend"
+
+# Create runtime.txt
+Set-Content -Path "runtime.txt" -Value "python-3.12.0"
