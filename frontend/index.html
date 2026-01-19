@@ -1,0 +1,415 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Quality Assistant - Multi-Agent AI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; }
+        header { background: linear-gradient(135deg, #2180a0 0%, #1d7480 100%); color: white; padding: 40px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        header h1 { font-size: 36px; margin-bottom: 8px; }
+        header p { font-size: 16px; opacity: 0.95; }
+        main { max-width: 1400px; margin: 40px auto; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; padding: 0 20px; }
+        .section { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+        h2 { color: #2180a0; margin-bottom: 24px; font-size: 22px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; font-size: 14px; }
+        select, textarea { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 14px; transition: border-color 0.3s; }
+        select:focus, textarea:focus { outline: none; border-color: #2180a0; }
+        select { background: white; cursor: pointer; }
+        textarea { min-height: 320px; resize: vertical; line-height: 1.6; }
+        button { width: 100%; padding: 14px; background: linear-gradient(135deg, #2180a0 0%, #1d7480 100%); color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 16px; cursor: pointer; margin-top: 10px; transition: all 0.3s; }
+        button:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(33, 128, 160, 0.3); }
+        button:active { transform: translateY(0); }
+        .output-code { background: #f8f9fa; border: 2px solid #e9ecef; border-radius: 8px; padding: 24px; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; min-height: 350px; max-height: 500px; overflow-y: auto; }
+        .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+        .stat { background: linear-gradient(135deg, #e3f2fd 0%, #f0f8ff 100%); padding: 20px; border-radius: 10px; text-align: center; border: 2px solid #bbdefb; }
+        .stat-label { font-size: 13px; color: #546e7a; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { font-size: 32px; font-weight: 700; color: #1976d2; }
+        .tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 2px solid #e9ecef; padding-bottom: 0; }
+        .tab { padding: 12px 24px; background: none; border: none; cursor: pointer; font-weight: 600; color: #6c757d; border-bottom: 3px solid transparent; transition: all 0.3s; font-size: 14px; }
+        .tab.active { color: #2180a0; border-bottom-color: #2180a0; }
+        .tab:hover { color: #2180a0; background: #f8f9fa; }
+        .loading { text-align: center; padding: 60px 40px; display: none; }
+        .loading.active { display: block; }
+        .spinner { width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #2180a0; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading-text { color: #6c757d; font-size: 16px; font-weight: 500; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .lang-count { background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 13px; margin-left: 10px; }
+        @media (max-width: 1024px) { main { grid-template-columns: 1fr; gap: 30px; } }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🤖 Code Quality Assistant</h1>
+        <p>Multi-Agent AI System for Code Analysis <span class="lang-count">18+ Languages</span></p>
+    </header>
+
+    <main>
+        <div class="section">
+            <h2>📝 Code Input</h2>
+            <div class="form-group">
+                <label for="language">Programming Language</label>
+                <select id="language" onchange="loadExample()">
+                    <option value="python">Python</option>
+                    <option value="javascript">JavaScript</option>
+                    <option value="typescript">TypeScript</option>
+                    <option value="java">Java</option>
+                    <option value="cpp">C++</option>
+                    <option value="csharp">C#</option>
+                    <option value="go">Go</option>
+                    <option value="rust">Rust</option>
+                    <option value="php">PHP</option>
+                    <option value="ruby">Ruby</option>
+                    <option value="swift">Swift</option>
+                    <option value="kotlin">Kotlin</option>
+                    <option value="sql">SQL</option>
+                    <option value="html">HTML</option>
+                    <option value="css">CSS</option>
+                    <option value="r">R</option>
+                    <option value="matlab">MATLAB</option>
+                    <option value="scala">Scala</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="code">Paste Your Code</label>
+                <textarea id="code"></textarea>
+            </div>
+            <button onclick="analyzeCode()">✨ Analyze Code</button>
+        </div>
+
+        <div class="section">
+            <h2>📊 Analysis Results</h2>
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div class="loading-text">Analyzing code with AI agents...</div>
+            </div>
+            <div id="results" style="display: none;">
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-label">Quality Score</div>
+                        <div class="stat-value" id="score">-</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Issues Found</div>
+                        <div class="stat-value" id="issues">-</div>
+                    </div>
+                </div>
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('analysis')">📋 Analysis</button>
+                    <button class="tab" onclick="switchTab('tests')">🧪 Tests</button>
+                    <button class="tab" onclick="switchTab('docs')">📖 Documentation</button>
+                </div>
+                <div id="analysis" class="tab-content active">
+                    <div class="output-code" id="analysisContent"></div>
+                </div>
+                <div id="tests" class="tab-content">
+                    <div class="output-code" id="testsContent"></div>
+                </div>
+                <div id="docs" class="tab-content">
+                    <div class="output-code" id="docsContent"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const codeExamples = {
+            python: `def fibonacci(n):
+    """Calculate fibonacci number recursively"""
+    if n <= 1:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+
+# Example usage
+result = fibonacci(10)
+print(f"Fibonacci(10) = {result}")`,
+
+            javascript: `function fetchUserData(userId) {
+    // Fetch user data from API
+    return fetch(\`https://api.example.com/users/\${userId}\`)
+        .then(response => response.json())
+        .then(data => {
+            console.log('User:', data);
+            return data;
+        })
+        .catch(error => console.error('Error:', error));
+}`,
+
+            typescript: `interface User {
+    id: number;
+    name: string;
+    email: string;
+}
+
+function greetUser(user: User): string {
+    return \`Hello, \${user.name}!\`;
+}
+
+const user: User = { id: 1, name: "John", email: "john@example.com" };
+console.log(greetUser(user));`,
+
+            java: `public class Calculator {
+    public static int add(int a, int b) {
+        return a + b;
+    }
+    
+    public static void main(String[] args) {
+        int result = add(5, 3);
+        System.out.println("Result: " + result);
+    }
+}`,
+
+            cpp: `#include <iostream>
+#include <vector>
+
+int findMax(const std::vector<int>& numbers) {
+    int max = numbers[0];
+    for (int num : numbers) {
+        if (num > max) max = num;
+    }
+    return max;
+}
+
+int main() {
+    std::vector<int> nums = {3, 7, 2, 9, 1};
+    std::cout << "Max: " << findMax(nums) << std::endl;
+    return 0;
+}`,
+
+            csharp: `using System;
+using System.Linq;
+
+class Program {
+    static void Main() {
+        int[] numbers = { 1, 2, 3, 4, 5 };
+        int sum = numbers.Sum();
+        Console.WriteLine($"Sum: {sum}");
+    }
+}`,
+
+            go: `package main
+
+import "fmt"
+
+func calculateSum(numbers []int) int {
+    sum := 0
+    for _, num := range numbers {
+        sum += num
+    }
+    return sum
+}
+
+func main() {
+    nums := []int{1, 2, 3, 4, 5}
+    fmt.Println("Sum:", calculateSum(nums))
+}`,
+
+            rust: `fn factorial(n: u32) -> u32 {
+    match n {
+        0 => 1,
+        _ => n * factorial(n - 1),
+    }
+}
+
+fn main() {
+    let result = factorial(5);
+    println!("Factorial(5) = {}", result);
+}`,
+
+            php: `<?php
+function getUserById($id) {
+    $users = [
+        1 => ['name' => 'Alice', 'email' => 'alice@example.com'],
+        2 => ['name' => 'Bob', 'email' => 'bob@example.com']
+    ];
+    return $users[$id] ?? null;
+}
+
+$user = getUserById(1);
+echo "User: " . $user['name'];
+?>`,
+
+            ruby: `def calculate_average(numbers)
+  return 0 if numbers.empty?
+  numbers.sum.to_f / numbers.length
+end
+
+numbers = [10, 20, 30, 40, 50]
+avg = calculate_average(numbers)
+puts "Average: #{avg}"`,
+
+            swift: `func greet(name: String) -> String {
+    return "Hello, \\(name)!"
+}
+
+let names = ["Alice", "Bob", "Charlie"]
+for name in names {
+    print(greet(name: name))
+}`,
+
+            kotlin: `fun calculateDiscount(price: Double, percentage: Int): Double {
+    return price * (100 - percentage) / 100
+}
+
+fun main() {
+    val originalPrice = 100.0
+    val discountedPrice = calculateDiscount(originalPrice, 20)
+    println("Price after discount: $$discountedPrice")
+}`,
+
+            sql: `SELECT 
+    u.name,
+    u.email,
+    COUNT(o.id) as order_count,
+    SUM(o.total) as total_spent
+FROM users u
+LEFT JOIN orders o ON u.id = o.user_id
+WHERE u.active = 1
+GROUP BY u.id, u.name, u.email
+HAVING COUNT(o.id) > 0
+ORDER BY total_spent DESC;`,
+
+            html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Website</title>
+</head>
+<body>
+    <header>
+        <h1>Welcome to My Site</h1>
+        <nav>
+            <a href="#home">Home</a>
+            <a href="#about">About</a>
+        </nav>
+    </header>
+</body>
+</html>`,
+
+            css: `.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.3s;
+}
+
+.button:hover {
+    transform: translateY(-2px);
+}`,
+
+            r: `calculate_stats <- function(data) {
+  list(
+    mean = mean(data),
+    median = median(data),
+    sd = sd(data),
+    min = min(data),
+    max = max(data)
+  )
+}
+
+numbers <- c(12, 15, 18, 22, 25, 30)
+stats <- calculate_stats(numbers)
+print(stats)`,
+
+            matlab: `function result = calculateMean(data)
+    % Calculate mean of array
+    result = sum(data) / length(data);
+end
+
+data = [10, 20, 30, 40, 50];
+meanValue = calculateMean(data);
+fprintf('Mean: %.2f\\n', meanValue);`,
+
+            scala: `object Calculator {
+  def factorial(n: Int): Int = {
+    if (n <= 1) 1
+    else n * factorial(n - 1)
+  }
+  
+  def main(args: Array[String]): Unit = {
+    println(s"Factorial(5) = \${factorial(5)}")
+  }
+}`
+        };
+
+        function loadExample() {
+            const language = document.getElementById('language').value;
+            const codeTextarea = document.getElementById('code');
+            codeTextarea.value = codeExamples[language] || '';
+        }
+
+        // Load Python example on page load
+        window.onload = function() {
+            loadExample();
+        };
+
+        async function analyzeCode() {
+            const code = document.getElementById('code').value.trim();
+            const language = document.getElementById('language').value;
+            
+            if (!code || code.length < 10) {
+                alert('Please enter valid code (at least 10 characters)');
+                return;
+            }
+
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('results').style.display = 'none';
+
+            try {
+                const response = await fetch('http://localhost:8000/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, language })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Backend error: ' + response.status);
+                }
+
+                const data = await response.json();
+                
+                document.getElementById('score').textContent = data.quality_score + '%';
+                document.getElementById('issues').textContent = data.issues_found;
+                document.getElementById('analysisContent').textContent = data.analysis;
+                document.getElementById('testsContent').textContent = data.tests;
+                document.getElementById('docsContent').textContent = data.documentation;
+
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('results').style.display = 'block';
+                switchTab('analysis');
+            } catch (e) {
+                document.getElementById('loading').classList.remove('active');
+                alert('Error: ' + e.message + '\n\nMake sure backend is running on http://localhost:8000');
+            }
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Keyboard shortcut: Ctrl+Enter to analyze
+        document.getElementById('code').addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                analyzeCode();
+            }
+        });
+    </script>
+</body>
+</html>
