@@ -1,13 +1,13 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
-from datetime import datetime
+from openai import OpenAI
 import os
-import httpx
+import traceback
 
-app = FastAPI(title="Code Quality Assistant", version="1.0.0")
+app = FastAPI()
 
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,111 +16,106 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class CodeInput(BaseModel):
+# Initialize OpenAI client with OpenRouter
+api_key = os.getenv("OPENROUTER_API_KEY")
+if not api_key:
+    print("ERROR: OPENROUTER_API_KEY environment variable not set!")
+else:
+    print("✅ OPENROUTER_API_KEY found")
+
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=api_key,
+)
+
+class CodeRequest(BaseModel):
     code: str
-    language: str = "python"
-    description: Optional[str] = None
-
-class AgentResponse(BaseModel):
-    analysis: str
-    tests: str
-    documentation: str
-    quality_score: float
-    issues_found: int
-    timestamp: str
-
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
-
-async def call_ai_agent(prompt: str, role: str) -> str:
-    """Call OpenRouter API with agent-specific prompts"""
-    if not OPENROUTER_API_KEY:
-        raise HTTPException(status_code=500, detail="API key not configured")
-    
-    system_prompts = {
-        "analyzer": "You are a code quality analyzer. Analyze code for bugs, style issues, and best practices. Always include a quality score between 70-95.",
-        "tester": "You are a test generation expert. Generate comprehensive unit tests with multiple test cases.",
-        "documenter": "You are a technical documentation writer. Create clear, structured documentation."
-    }
-    
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": "meta-llama/llama-3.1-8b-instruct:free",
-                "messages": [
-                    {"role": "system", "content": system_prompts[role]},
-                    {"role": "user", "content": prompt}
-                ]
-            }
-        )
-        
-        if response.status_code != 200:
-            raise HTTPException(status_code=500, detail=f"AI API error: {response.text}")
-        
-        result = response.json()
-        return result["choices"][0]["message"]["content"]
-
-@app.post("/analyze", response_model=AgentResponse)
-async def analyze(input_data: CodeInput):
-    if not input_data.code or len(input_data.code.strip()) < 10:
-        raise HTTPException(status_code=400, detail="Code too short")
-    
-    try:
-        # Agent 1: Code Analyzer
-        analysis_prompt = f"Analyze this {input_data.language} code and provide quality score (70-95) and issues:\n\n{input_data.code}"
-        analysis_text = await call_ai_agent(analysis_prompt, "analyzer")
-        
-        # Agent 2: Test Generator
-        test_prompt = f"Generate unit tests for this {input_data.language} code:\n\n{input_data.code}"
-        test_text = await call_ai_agent(test_prompt, "tester")
-        
-        # Agent 3: Documentation Writer
-        doc_prompt = f"Write comprehensive documentation for this {input_data.language} code:\n\n{input_data.code}"
-        doc_text = await call_ai_agent(doc_prompt, "documenter")
-        
-        # Extract quality score
-        import re
-        scores = re.findall(r'(\d+)[%]?', analysis_text)
-        quality_score = 85.0
-        for score in scores:
-            s = float(score)
-            if 70 <= s <= 95:
-                quality_score = s
-                break
-        
-        issues_found = max(0, int((100 - quality_score) / 10))
-        
-        return AgentResponse(
-            analysis=analysis_text,
-            tests=test_text,
-            documentation=doc_text,
-            quality_score=quality_score,
-            issues_found=issues_found,
-            timestamp=datetime.now().isoformat()
-        )
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
-
-@app.get("/health")
-async def health_check():
-    return {
-        "status": "healthy",
-        "ai_enabled": bool(OPENROUTER_API_KEY),
-        "agents": ["CodeAnalyzer", "TestGenerator", "DocumentationWriter"],
-        "timestamp": datetime.now().isoformat()
-    }
+    language: str
 
 @app.get("/")
 async def root():
-    return {
-        "name": "Code Quality Assistant with Pydantic AI",
-        "version": "1.0.0",
-        "description": "Multi-agent AI system using Pydantic AI architecture",
-        "agents": ["CodeAnalyzer", "TestGenerator", "DocumentationWriter"],
-        "ai_status": "enabled" if OPENROUTER_API_KEY else "disabled"
-    }
+    return {"message": "Code Quality Assistant API is running"}
+
+@app.post("/analyze")
+async def analyze_code(request: CodeRequest):
+    try:
+        print(f"\n=== Analyzing {request.language} code ===")
+        print(f"Code length: {len(request.code)} characters")
+        
+        # Agent 1: Code Analyzer
+        print("🔍 Starting CodeAnalyzer agent...")
+        analyzer_response = client.chat.completions.create(
+            model="meta-llama/llama-3.1-8b-instruct:free",
+            messages=[
+                {
+                    "role": "system",
+                    "content": f"You are a code quality analyzer. Analyze the following {request.language} code and provide: 1) Quality score (0-100), 2) Issues found, 3) Best practices recommendations. Format your response clearly."
+                },
+                {
+                    "role": "user",
+                    "content": request.code
+                }
+            ],
+        )
+        code_analysis = analyzer_response.choices[0].message.content
+        print(f"✅ CodeAnalyzer complete: {len(code_analysis)} chars")
+
+        # Agent 2: Test Generator
+        print("🧪 Starting TestGenerator agent...")
+        test_response = client.chat.completions.create(
+            model="meta-llama/llama-3.1-8b-instruct:free",
+            messages=[
+                {
+                    "role": "system",
+                    "content": f"You are a test case generator. Generate comprehensive unit tests for the following {request.language} code. Include edge cases and expected outputs."
+                },
+                {
+                    "role": "user",
+                    "content": request.code
+                }
+            ],
+        )
+        test_cases = test_response.choices[0].message.content
+        print(f"✅ TestGenerator complete: {len(test_cases)} chars")
+
+        # Agent 3: Documentation Writer
+        print("📝 Starting DocumentationWriter agent...")
+        doc_response = client.chat.completions.create(
+            model="meta-llama/llama-3.1-8b-instruct:free",
+            messages=[
+                {
+                    "role": "system",
+                    "content": f"You are a technical documentation writer. Write clear, comprehensive documentation for the following {request.language} code. Include purpose, parameters, return values, and usage examples."
+                },
+                {
+                    "role": "user",
+                    "content": request.code
+                }
+            ],
+        )
+        documentation = doc_response.choices[0].message.content
+        print(f"✅ DocumentationWriter complete: {len(documentation)} chars")
+        
+        print("🎉 All agents completed successfully!\n")
+
+        return {
+            "code_analysis": code_analysis,
+            "test_cases": test_cases,
+            "documentation": documentation
+        }
+        
+    except Exception as e:
+        error_msg = str(e)
+        error_trace = traceback.format_exc()
+        print(f"\n❌ ERROR in /analyze endpoint:")
+        print(f"Error message: {error_msg}")
+        print(f"Full traceback:\n{error_trace}\n")
+        
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Analysis failed: {error_msg}"
+        )
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
